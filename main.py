@@ -23,7 +23,7 @@ def fetch_vacancy(search_field) -> list:
     return vacancies
 
 
-def predict_rub_salary(vacancy: dict) -> float|None:
+def predict_rub_salary(vacancy: dict) -> float | None:
     about_salary = vacancy.get("salary")
     if about_salary.get("currency") != "RUR":
         return None
@@ -43,13 +43,15 @@ def about_vacancies(vacancies: list) -> list:
 def main():
     languages = [
         "TypeScript", "Swift", "Scala", "Objective-C", "Shell", "Go",
-        "C++", "C#", "PHP" , "Ruby", "Python", "Java", "JavaScript"
+        "C++", "C#", "PHP", "Ruby", "Python", "Java", "JavaScript"
         ]
-    keys = ["vacancies_found", "vacancies_processed","average_salary"]
+    keys = ["vacancies_found", "vacancies_processed", "average_salary"]
     jobs = {}
     for language in languages:
         about_vacancies(fetch_vacancy(language))
-        language_vacancies = dict(zip(keys, about_vacancies(fetch_vacancy(language))))
+        language_vacancies = dict(zip(
+            keys, about_vacancies(fetch_vacancy(language)))
+            )
         jobs[language] = language_vacancies
     print(jobs)
 
