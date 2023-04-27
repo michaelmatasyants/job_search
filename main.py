@@ -2,12 +2,12 @@ import requests
 
 
 def fetch_vacancy(search_field) -> list:
+    '''Finds jobs by the specified search field and displays list of jobs'''
     page, vacancies = 0, []
     url = "https://api.hh.ru/vacancies"
     payload = {
         "text": f"NAME:Программист AND {search_field}",
         "area": 1,
-        "only_with_salary": True,
         "per_page": 100,
         "page": page
     }
@@ -24,7 +24,10 @@ def fetch_vacancy(search_field) -> list:
 
 
 def predict_rub_salary(vacancy: dict) -> float | None:
+    '''Predicts salary of each vacancy'''
     about_salary = vacancy.get("salary")
+    if about_salary is None:
+        return None
     if about_salary.get("currency") != "RUR":
         return None
     if about_salary.get("from") is None:
@@ -32,20 +35,20 @@ def predict_rub_salary(vacancy: dict) -> float | None:
     return about_salary.get("from") * 1.2
 
 
-def about_vacancies(vacancies: list) -> list:
-    salaries = [predict_rub_salary(vacancy) for vacancy in vacancies
-                if predict_rub_salary(vacancy) is not None]
+def about_vacancies(vacancies: list) -> tuple:
+    '''Creates tuple with count of all found vacancies, processed vacancies
+    and calculated average salary of all jobs'''
+    salaries = tuple(predict_rub_salary(vacancy) for vacancy in vacancies
+                     if predict_rub_salary(vacancy) is not None)
     vacancies_processed = len(salaries)
     average_salery = int(sum(salaries) / vacancies_processed)
-    return [len(vacancies), vacancies_processed, average_salery]
+    return len(vacancies), vacancies_processed, average_salery
 
 
 def main():
-    languages = [
-        "TypeScript", "Swift", "Scala", "Objective-C", "Shell", "Go",
-        "C++", "C#", "PHP", "Ruby", "Python", "Java", "JavaScript"
-        ]
-    keys = ["vacancies_found", "vacancies_processed", "average_salary"]
+    languages = ("TypeScript", "Swift", "Scala", "Objective-C", "Shell", "Go",
+                 "C++", "C#", "PHP", "Ruby", "Python", "Java", "JavaScript", )
+    keys = "vacancies_found", "vacancies_processed", "average_salary"
     jobs = {}
     for language in languages:
         about_vacancies(fetch_vacancy(language))
