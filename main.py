@@ -1,6 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv, find_dotenv
+from terminaltables import AsciiTable
 
 
 def fetch_hh_vacancy(search_field: str) -> list:
@@ -87,16 +88,16 @@ def predict_salary(salary_from: float, salary_to: float) -> None | float:
 def about_vacancies(vacancies: list, predict_rub_salary) -> tuple | None:
     '''Creates tuple with count of all found vacancies, processed vacancies
     and calculated average salary of all jobs'''
-    salaries = [el for el in (
+    salaries = [salary for salary in (
                     predict_salary(*predict_rub_salary(vacancy=vacancy))
                     for vacancy in vacancies)
-                if el not in (None, 0)]
+                if salary not in (None, 0)]
     vacancies_found = len(vacancies)
-    if not salaries:
-        return vacancies_found, 0, 0
-    vacancies_processed = len(salaries)
-    average_salery = int(sum(salaries) / vacancies_processed)
-    return len(vacancies), vacancies_processed, average_salery
+    if salaries:
+        vacancies_processed = len(salaries)
+        average_salery = int(sum(salaries) / vacancies_processed)
+        return vacancies_found, vacancies_processed, average_salery
+    return vacancies_found, 0, 0
 
 
 def parse_hh_vacancies(search_keywords: tuple) -> dict:
@@ -127,7 +128,7 @@ def parse_sj_vacancies(search_keywords: tuple) -> dict:
     for keyword in search_keywords:
         all_vacancies = fetch_sj_vacancy(keyword)
         if not all_vacancies:
-            jobs[keyword] = 0
+            jobs[keyword] = dict(zip(keys, (0, 0, 0)))
             continue
         vacancy_data = about_vacancies(
             vacancies=all_vacancies, predict_rub_salary=predict_rub_salary_sj)
@@ -135,11 +136,22 @@ def parse_sj_vacancies(search_keywords: tuple) -> dict:
     return jobs
 
 
+def create_table(jobs: dict, title=None) -> AsciiTable:
+    '''Creates table to display the data in a readable form'''
+    jobs_table = AsciiTable([
+        ["Язык программирования", "Вакансий найдено","Вакансий обработано","Средняя зарплата"],
+        *[[language_name, *job_stats.values()] if job_stats else [language_name, job_stats]
+          for language_name, job_stats in jobs.items()]], title)
+    return jobs_table.table
+
+
 def main():
     languages = ("TypeScript", "Swift", "Scala", "Objective-C", "Shell", "Go",
                  "C++", "C#", "PHP", "Ruby", "Python", "Java", "JavaScript")
-    print(parse_sj_vacancies(languages), parse_hh_vacancies(languages),
-          sep='\n\n')
+    print(create_table(parse_hh_vacancies(languages),
+                       title='HeadHunter Moscow'),
+          create_table(parse_sj_vacancies(languages),
+                       title='SuperJob Moscow'), sep='\n\n')
 
 
 if __name__ == "__main__":
