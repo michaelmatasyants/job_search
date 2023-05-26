@@ -11,7 +11,7 @@ The obtained data is presented in the form of a table, where for each programmin
 - predicted average salary for all vacancies in this programming language in rubles.
 
 The predicted value is calculated as follows:
-1. if only wages from, the given value is multiplied by 1.2
+1. if only salary from, the given value is multiplied by 1.2
 2. if only salary to is specified, this value is multiplied by 0.8
 3. if the salary from and to is specified, the average value is chosen 
 
