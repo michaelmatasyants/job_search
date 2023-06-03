@@ -1,6 +1,6 @@
 # Programming vacancies compare
 
-This project allows you to get information on all vacancies from superjob.ru and hh.ru:
+This project allows you to get information on all vacancies from [superjob.ru](https://www.superjob.ru/) and [hh.ru](https://hh.ru/):
 - on the specified list of programming languages
 - in the region of Moscow
 - in the field of programming (IT)
@@ -35,5 +35,53 @@ The predicted value is calculated as follows:
     ```
 6. Remember to add `.env` to your `.gitignore` if you are going to put the project on GIT.
 
-## Project Goals
+### How to run
+
+Run in your console:
+
+```Console
+>>> python3 main.py
+```
+
+Output:
+    
+```Console
++HeadHunter Moscow------+------------------+---------------------+------------------+
+| Язык программирования | Вакансий найдено | Вакансий обработано | Средняя зарплата |
++-----------------------+------------------+---------------------+------------------+
+| TypeScript            | 1100             | 484                 | 162659           |
+| Swift                 | 400              | 124                 | 179032           |
+| Scala                 | 196              | 22                  | 240454           |
+| Objective-C           | 112              | 24                  | 205000           |
+| Shell                 | 168              | 40                  | 200300           |
+| Go                    | 600              | 180                 | 204400           |
+| C++                   | 1200             | 588                 | 191712           |
+| C#                    | 900              | 378                 | 156721           |
+| PHP                   | 1200             | 864                 | 126490           |
+| Ruby                  | 164              | 32                  | 260687           |
+| Python                | 1500             | 690                 | 129826           |
+| Java                  | 1600             | 688                 | 179872           |
+| JavaScript            | 2100             | 1176                | 118625           |
++-----------------------+------------------+---------------------+------------------+
+
++SuperJob Moscow--------+------------------+---------------------+------------------+
+| Язык программирования | Вакансий найдено | Вакансий обработано | Средняя зарплата |
++-----------------------+------------------+---------------------+------------------+
+| TypeScript            | 2                | 2                   | 224000           |
+| Swift                 | 0                | 0                   | 0                |
+| Scala                 | 1                | 1                   | 240000           |
+| Objective-C           | 0                | 0                   | 0                |
+| Shell                 | 0                | 0                   | 0                |
+| Go                    | 1                | 1                   | 300000           |
+| C++                   | 12               | 10                  | 169400           |
+| C#                    | 7                | 4                   | 131500           |
+| PHP                   | 10               | 9                   | 148444           |
+| Ruby                  | 1                | 0                   | 0                |
+| Python                | 14               | 10                  | 113507           |
+| Java                  | 5                | 2                   | 224000           |
+| JavaScript            | 20               | 14                  | 134505           |
++-----------------------+------------------+---------------------+------------------+
+```
+
+### Project Goals
 The code is written for educational purposes.
