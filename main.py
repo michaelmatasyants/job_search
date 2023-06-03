@@ -4,15 +4,16 @@ from dotenv import load_dotenv, find_dotenv
 from terminaltables import AsciiTable
 
 
-def fetch_hh_vacancy(search_field: str) -> list:
+def fetch_hh_vacancies(search_field: str) -> list:
     '''Finds jobs from hh.ru by the specified search field and
        displays list of jobs'''
 
     page, vacancies, url = 0, [], "https://api.hh.ru/vacancies"
+    moscow_area_code, vacancies_per_page = 1, 100
     payload = {
         "text": f"NAME:Программист AND {search_field}",
-        "area": 1,
-        "per_page": 100,
+        "area": moscow_area_code,
+        "per_page": vacancies_per_page,
         "page": page
     }
     pages_number = 1
@@ -27,22 +28,22 @@ def fetch_hh_vacancy(search_field: str) -> list:
     return vacancies
 
 
-def fetch_sj_vacancy(search_field: str) -> list:
+def fetch_sj_vacancies(search_field: str, token: str) -> list:
     '''Finds jobs from superjob.ru by the specified search field and
        displays list of jobs'''
-    load_dotenv(find_dotenv())
     headers = {
-        "X-Api-App-Id": os.environ["TOKEN_SUPERJOB"],
+        "X-Api-App-Id": token,
         "Authorization": "Bearer r.000000010000001.example.access_token",
         "Content-Type": "application/x-www-form-urlencoded"
     }
     pages_number, page, vacancies = 1, 0, []
+    specialization_code, vacancies_per_page = 48, 100
     url = "https://api.superjob.ru/2.0/vacancies/"
     payload = {
         "town": "Москва",
-        "catalogues": 48,
+        "catalogues": specialization_code,
         "keyword": search_field,
-        "count": 100,
+        "count": vacancies_per_page,
         "page": page
     }
     while page < pages_number:
@@ -50,53 +51,64 @@ def fetch_sj_vacancy(search_field: str) -> list:
         vacancy_response.raise_for_status()
 
         vacancy_payload = vacancy_response.json()
-        pages_number = round(vacancy_payload.get('total') / 100)
+        pages_number = round(vacancy_payload.get('total') / vacancies_per_page)
         vacancies.extend(vacancy_payload.get('objects'))
         page += 1
     return vacancies
 
 
-def predict_rub_salary_hh(vacancy: dict) -> tuple[float] | tuple[None]:
+def get_hh_salary_from_and_to(vacancy: dict) -> tuple[float] | tuple[None]:
     '''Gets 'salary from' and 'salary to' for vacancy on hh.ru'''
     salary = vacancy.get("salary")
-    if salary is None or salary.get("currency") != "RUR":
+    if not salary or salary.get("currency") != "RUR":
         return None, None
     salary_from = salary.get("from")
     salary_to = salary.get("to")
+    if not salary_from:
+        salary_from = None
+    if not salary_to:
+        salary_to = None
     return salary_from, salary_to
 
 
-def predict_rub_salary_sj(vacancy: dict) -> None | float:
-    '''Gets 'salary from' and 'salary to' for vacancy on superjob.ru'''
+def get_sj_salary_from_and_to(vacancy: dict) -> tuple[float] | tuple[None]:
+    '''Gets "salary from" and "salary to" for vacancy on superjob.ru'''
     salary_from = vacancy.get("payment_from")
     salary_to = vacancy.get("payment_to")
+    if not salary_from:
+        salary_from = None
+    if not salary_to:
+        salary_to = None
     return salary_from, salary_to
 
 
 def predict_salary(salary_from: float, salary_to: float) -> None | float:
     '''Predicts salary of vacancy with use of "salary_from" and "salary_to"'''
-    if ((salary_from is None or not salary_from)
-            and (salary_to is None or not salary_to)):
+    if not salary_from and not salary_to:
         return None
-    if salary_from is None or not salary_from:
+    if not salary_from:
         return int(salary_to * 0.8)
-    if salary_to is None or not salary_to:
+    if not salary_to:
         return int(salary_from * 1.2)
-    return round((salary_from + salary_to) / 2)
+    average_salary = (salary_from + salary_to) / 2
+    return round(average_salary)
 
 
-def about_vacancies(vacancies: list, predict_rub_salary) -> tuple | None:
+def get_vacancy_statistics(vacancies: list,
+                           get_salary: callable) -> tuple | None:
     '''Creates tuple with count of all found vacancies, processed vacancies
     and calculated average salary of all jobs'''
-    salaries = [salary for salary in (
-                    predict_salary(*predict_rub_salary(vacancy=vacancy))
-                    for vacancy in vacancies)
-                if salary not in (None, 0)]
+    salaries = [
+        salary for salary in (
+            predict_salary(*get_salary(vacancy=vacancy))
+            for vacancy in vacancies)
+        if salary
+    ]
     vacancies_found = len(vacancies)
     if salaries:
         vacancies_processed = len(salaries)
-        average_salery = int(sum(salaries) / vacancies_processed)
-        return vacancies_found, vacancies_processed, average_salery
+        average_salary = int(sum(salaries) / vacancies_processed)
+        return vacancies_found, vacancies_processed, average_salary
     return vacancies_found, 0, 0
 
 
@@ -105,53 +117,70 @@ def parse_hh_vacancies(search_keywords: tuple) -> dict:
        for each of them with the addition of columns:
         "vacancies_found", "vacancies_processed", "average_salary"
     '''
-    jobs = {}
+    vacancy_statistics_by_search_keywords = {}
     keys = ("vacancies_found", "vacancies_processed", "average_salary")
-    for keyword in search_keywords:
-        all_vacancies = fetch_hh_vacancy(keyword)
+    for search_keyword in search_keywords:
+        all_vacancies = fetch_hh_vacancies(search_keyword)
         if not all_vacancies:
-            jobs[keyword] = 0
+            vacancy_statistics_by_search_keywords[search_keyword] = 0
             continue
-        vacancy_data = about_vacancies(
-            vacancies=all_vacancies, predict_rub_salary=predict_rub_salary_hh)
-        jobs[keyword] = dict(zip(keys, vacancy_data))
-    return jobs
+        vacancy_statistics = get_vacancy_statistics(
+            vacancies=all_vacancies, get_salary=get_hh_salary_from_and_to)
+        vacancy_statistics_by_search_keywords[search_keyword] = {
+            key: vacancy_statistics[ind] for ind, key in enumerate(keys)}
+    return vacancy_statistics_by_search_keywords
 
 
-def parse_sj_vacancies(search_keywords: tuple) -> dict:
+def parse_sj_vacancies(search_keywords: tuple, token: str) -> dict:
     '''Parses jobs by search_keywords from superjob.ru and returns information
        for each of them with the addition of columns:
        "vacancies_found", "vacancies_processed", "average_salary"
     '''
-    jobs = {}
+    vacancy_statistics_by_search_keywords = {}
     keys = ("vacancies_found", "vacancies_processed", "average_salary")
-    for keyword in search_keywords:
-        all_vacancies = fetch_sj_vacancy(keyword)
+    for search_keyword in search_keywords:
+        all_vacancies = fetch_sj_vacancies(search_keyword, token=token)
         if not all_vacancies:
-            jobs[keyword] = dict(zip(keys, (0, 0, 0)))
+            vacancy_statistics_by_search_keywords[search_keyword] = dict(
+                zip(keys, (0, 0, 0)))
             continue
-        vacancy_data = about_vacancies(
-            vacancies=all_vacancies, predict_rub_salary=predict_rub_salary_sj)
-        jobs[keyword] = dict(zip(keys, vacancy_data))
-    return jobs
+        vacancy_statistics = get_vacancy_statistics(
+            vacancies=all_vacancies, get_salary=get_sj_salary_from_and_to)
+        vacancy_statistics_by_search_keywords[search_keyword] = {
+            key: vacancy_statistics[ind] for ind, key in enumerate(keys)}
+    return vacancy_statistics_by_search_keywords
 
 
 def create_table(jobs: dict, title=None) -> AsciiTable:
     '''Creates table to display the data in a readable form'''
-    jobs_table = AsciiTable([
-        ["Язык программирования", "Вакансий найдено","Вакансий обработано","Средняя зарплата"],
-        *[[language_name, *job_stats.values()] if job_stats else [language_name, job_stats]
-          for language_name, job_stats in jobs.items()]], title)
-    return jobs_table.table
+    column_names = ["Язык программирования", "Вакансий найдено",
+                    "Вакансий обработано", "Средняя зарплата"]
+
+    def get_table_data(jobs: dict) -> list:
+        '''Creates list of data to be displayed in table'''
+        table_data = [[language_name, *job_stats.values()]
+                      if job_stats else [language_name, job_stats]
+                      for language_name, job_stats in jobs.items()]
+        return table_data
+
+    def make_table(table_data: list) -> AsciiTable:
+        '''Creates the table using the provided data'''
+        jobs_table = AsciiTable([column_names, *table_data], title=title)
+        return jobs_table.table
+
+    return make_table(table_data=get_table_data(jobs=jobs))
 
 
 def main():
+    load_dotenv(find_dotenv())
+    sj_token = os.environ["TOKEN_SUPERJOB"]
     languages = ("TypeScript", "Swift", "Scala", "Objective-C", "Shell", "Go",
                  "C++", "C#", "PHP", "Ruby", "Python", "Java", "JavaScript")
-    print(create_table(parse_hh_vacancies(languages),
-                       title='HeadHunter Moscow'),
-          create_table(parse_sj_vacancies(languages),
-                       title='SuperJob Moscow'), sep='\n\n')
+    hh_table = create_table(parse_hh_vacancies(languages),
+                            title='HeadHunter Moscow')
+    sj_table = create_table(parse_sj_vacancies(languages, token=sj_token),
+                            title='SuperJob Moscow')
+    print(hh_table, sj_table, sep='\n\n')
 
 
 if __name__ == "__main__":
