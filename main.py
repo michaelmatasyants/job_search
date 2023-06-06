@@ -155,10 +155,11 @@ def create_table(jobs: dict, title=None) -> AsciiTable:
     '''Creates table to display the data in a readable form'''
     column_names = ["Язык программирования", "Вакансий найдено",
                     "Вакансий обработано", "Средняя зарплата"]
-    table_data = [[language_name, *job_stats.values()]
-                  if job_stats else [language_name, job_stats]
-                  for language_name, job_stats in jobs.items()]
-    jobs_table = AsciiTable([column_names, *table_data], title=title)
+    table_vacancy_statistics = [[language_name, *job_stats.values()]
+                                if job_stats else [language_name, job_stats]
+                                for language_name, job_stats in jobs.items()]
+    jobs_table = AsciiTable([column_names, *table_vacancy_statistics],
+                            title=title)
     return jobs_table.table
 
 
